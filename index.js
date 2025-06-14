@@ -1,6 +1,6 @@
 require('dotenv').config();
 
-const { Client, GatewayIntentBits, ChannelType } = require('discord.js');
+const { Client, GatewayIntentBits, ChannelType, Partials } = require('discord.js');
 
 const checkTransactions = require('./checkTransactions');
 const { getDiscordUserPortfolios, getLastTransactions } = require('./master');
@@ -12,7 +12,7 @@ const client = new Client({
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.DirectMessages
   ],
-  partials: ['CHANNEL']
+  partials: [Partials.Channel]
 });
 
 const TOKEN = process.env.DISCORD_TOKEN;

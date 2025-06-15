@@ -4,13 +4,13 @@ A Discord bot for portfolio and transaction notifications.
 
 ## Features
 
-- Sends direct messages (DM) to users about new transactions every 5 minutes
+- Sends direct messages (DM) to users about new transactions every hour
 - Responds to commands:
   - `!ping` – Check if the bot is online
   - `!hello` – Get a DM reply from the bot
   - `!alert` – Test DM sending
-  - `!help` – List available commands
   - `!lasttransactions` – Get your last 24h transactions
+  - `!help` – List available commands
 
 ## Setup
 
@@ -54,3 +54,5 @@ A Discord bot for portfolio and transaction notifications.
 
 - **Never share your `.env` file or bot token.**
 - The `.env` file is excluded from git by default.
+
+## License

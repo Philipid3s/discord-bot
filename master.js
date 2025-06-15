@@ -2,12 +2,12 @@ const axios = require("axios");
 
 const getDiscordUserPortfolios = async (discordUID) => {
     try {
-        const response = await axios.post('http://127.0.0.1:5001/get_discord_user_portfolios', { DiscordUID: discordUID });
+        const response = await axios.post('http://127.0.0.1:5001/get_discord_user_portfolios', { discord_id: discordUID });
         let userPortfolios = [];
         if (response.status === 200) {
             userPortfolios = response.data;
         }
-        return userPortfolios[0];
+        return userPortfolios;
     } catch (error) {
         console.error('Error fetching user and portfolios:', error.message);
         return null;

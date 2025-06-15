@@ -18,16 +18,17 @@ const client = new Client({
 const TOKEN = process.env.DISCORD_TOKEN;
 
 const usersToNotify = [
-  '215348009825730560'
+  215348009825730560 // Julien Discord ID
+  // Add more user IDs as needed
 ];
 
-// ✅ DM toutes les 5 min
 client.once('ready', () => {
   console.log(`✅ Connecté en tant que ${client.user.tag}`);
 
+  // Check transactions every 60 minutes
   setInterval(() => {
     checkTransactions(client, usersToNotify);
-  }, 5 * 60 * 1000);
+  }, 60 * 60 * 1000);
 });
 
 // ✅ Un seul bloc messageCreate
@@ -54,9 +55,10 @@ client.on('messageCreate', async message => {
       await message.channel.send(`
 📜 **Commandes disponibles :**
 - \`!ping\` → Vérifie si le bot répond.
-- \`!hello\` → Réponse en DM
+- \`!hello\` → Réponse en DM (message privé)
 - \`!alert\` → Teste l'envoi d’un DM
-- \`!help\` → Affiche ce message
+- \`!lasttransactions\` → Affiche vos transactions des dernières 24h
+- \`!help\` → Affiche ce message d'aide
       `);
     }
 
@@ -73,7 +75,9 @@ client.on('messageCreate', async message => {
     if (message.content === '!lasttransactions') {
     try {
       // Get User
-      const user = await getDiscordUserPortfolios(message.author.id);
+      const userIdInt = parseInt(message.author.id, 10);
+      console.log(`!lasttransactions from discord id ${userIdInt}`);
+      const user = await getDiscordUserPortfolios(userIdInt);
       if (!user) {
         await message.reply('You are not authorized to use this command.');
         return;
@@ -82,7 +86,7 @@ client.on('messageCreate', async message => {
       // Get Portfolios
       let countPortfolio = 0;
       let statusResponse = "";
-      for (const portfolio of user.Portfolios) {
+      for (const portfolio of user.portfolio) {
         if (countPortfolio > 0)
           statusResponse += "\n";
         statusResponse += `${portfolio.Keyword}\n`;
@@ -96,6 +100,8 @@ client.on('messageCreate', async message => {
         if (transactions.length === 0)
           statusResponse += "None\n";
       }
+      if (user.portfolio.length === 0)
+          statusResponse += "No Portfolio\n";
       console.log(statusResponse);
 
       // Discord messages have a 2000 character limit

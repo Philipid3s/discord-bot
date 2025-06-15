@@ -39,7 +39,7 @@ module.exports = async function checkTransactions(client, usersToNotify) {
             if (countTransaction > 0) {
                 // Map your user.TelegramUID to Discord user ID as needed
                 // Here, we assume user.DiscordUID exists and is in usersToNotify
-                const discordUserId = user.DiscordUID;
+                const discordUserId = user.discord_id;
                 if (usersToNotify.includes(discordUserId)) {
                     try {
                         const discordUser = await client.users.fetch(discordUserId);
@@ -52,7 +52,7 @@ module.exports = async function checkTransactions(client, usersToNotify) {
                     console.log(`Discord user ID ${discordUserId} not in usersToNotify`);
                 }
             } else {
-                console.log(`No new transaction for ${user.DiscordName || user.DiscordUID}`);
+                console.log(`No new transaction for ${user.discord_name || user.discord_id}`);
             }
         }
     } catch (error) {

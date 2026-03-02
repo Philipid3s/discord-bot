@@ -3,7 +3,11 @@ require('dotenv').config();
 const { Client, GatewayIntentBits, ChannelType, Partials } = require('discord.js');
 
 const checkTransactions = require('./checkTransactions');
-const { getDiscordUserPortfolios, getLastTransactions } = require('./master');
+const {
+  checkBackendAvailability,
+  getDiscordUserPortfolios,
+  getLastTransactions
+} = require('./master');
 
 const client = new Client({
   intents: [
@@ -18,93 +22,135 @@ const client = new Client({
 const TOKEN = process.env.DISCORD_TOKEN;
 
 const usersToNotify = [
-  215348009825730560 // Julien Discord ID
+  '215348009825730560' // Julien Discord ID
   // Add more user IDs as needed
 ];
 
-client.once('ready', () => {
-  console.log(`✅ Connecté en tant que ${client.user.tag}`);
+let transactionCheckInterval = null;
+let backendRetryInterval = null;
 
-  // Check transactions every 60 minutes
-  setInterval(() => {
-    checkTransactions(client, usersToNotify);
+const startTransactionChecks = (clientInstance) => {
+  if (transactionCheckInterval) return;
+
+  checkTransactions(clientInstance, usersToNotify);
+  transactionCheckInterval = setInterval(() => {
+    checkTransactions(clientInstance, usersToNotify);
   }, 60 * 60 * 1000);
+};
+
+const waitForBackendAndStartChecks = async (clientInstance) => {
+  const result = await checkBackendAvailability();
+  if (result.ok) {
+    console.log('Backend is reachable. Starting transaction checks.');
+    startTransactionChecks(clientInstance);
+    return;
+  }
+
+  console.error(`Backend unavailable: ${result.message}`);
+  if (backendRetryInterval) return;
+
+  console.log('Retrying backend check every 60 seconds.');
+  backendRetryInterval = setInterval(async () => {
+    const retryResult = await checkBackendAvailability();
+    if (!retryResult.ok) {
+      console.error(`Backend still unavailable: ${retryResult.message}`);
+      return;
+    }
+
+    console.log('Backend recovered. Starting transaction checks.');
+    clearInterval(backendRetryInterval);
+    backendRetryInterval = null;
+    startTransactionChecks(clientInstance);
+  }, 60 * 1000);
+};
+
+client.once('ready', async () => {
+  console.log(`Connected as ${client.user.tag}`);
+  await waitForBackendAndStartChecks(client);
 });
 
-// ✅ Un seul bloc messageCreate
 client.on('messageCreate', async message => {
   if (message.author.bot) return;
 
-  console.log('📝 Message reçu. Type de canal:', message.channel.type, 'Contenu:', message.content);
-
   const isDM = message.channel.type === ChannelType.DM;
-
 
   if (isDM) {
     if (message.content === '!hello') {
-      await message.reply('👋 Bonjour, ceci est une réponse en message privé !');
+      await message.reply('Hello, this is a private message response.');
     } else {
-      await message.reply("🤖 Commande non reconnue en DM. Essaie `!hello`.");
+      await message.reply('Command not recognized in DM. Try `!hello`.');
     }
-  } else {
-    if (message.content === '!ping') {
-      await message.reply('🏓 Pong!');
-    }
+    return;
+  }
 
-    if (message.content === '!help') {
-      await message.channel.send(`
-📜 **Commandes disponibles :**
-- \`!ping\` → Vérifie si le bot répond.
-- \`!hello\` → Réponse en DM (message privé)
-- \`!alert\` → Teste l'envoi d’un DM
-- \`!lasttransactions\` → Affiche vos transactions des dernières 24h
-- \`!help\` → Affiche ce message d'aide
-      `);
-    }
+  if (message.content === '!ping') {
+    await message.reply('Pong!');
+  }
 
-    if (message.content === '!alert') {
-      try {
-        await message.author.send("🔒 Ceci est un message privé !");
-        console.log(`✅ DM envoyé à ${message.author.tag}`);
-      } catch (error) {
-        console.error(`❌ Impossible d’envoyer un DM à ${message.author.tag}: ${error.message}`);
-        await message.channel.send(`<@${message.author.id}> Je n’ai pas pu t’envoyer de DM. Vérifie tes paramètres.`);
-      }
-    }
+  if (message.content === '!help') {
+    await message.channel.send(`
+Available commands:
+- \`!ping\` -> Check if the bot is online
+- \`!hello\` -> DM response
+- \`!alert\` -> Test DM sending
+- \`!lasttransactions\` -> Show your last 24h transactions
+- \`!backend\` -> Check backend API availability
+- \`!help\` -> Show this help message
+    `);
+  }
 
-    if (message.content === '!lasttransactions') {
+  if (message.content === '!backend') {
+    const result = await checkBackendAvailability();
+    if (result.ok) {
+      await message.reply('Backend API is reachable.');
+    } else {
+      await message.reply(`Backend API unavailable: ${result.message}`);
+    }
+  }
+
+  if (message.content === '!alert') {
     try {
-      // Get User
-      const userIdInt = parseInt(message.author.id, 10);
-      console.log(`!lasttransactions from discord id ${userIdInt}`);
-      const user = await getDiscordUserPortfolios(userIdInt);
+      await message.author.send('This is a private message.');
+      console.log(`DM sent to ${message.author.tag}`);
+    } catch (error) {
+      console.error(`Unable to send DM to ${message.author.tag}: ${error.message}`);
+      await message.channel.send(`<@${message.author.id}> I could not send you a DM. Check your settings.`);
+    }
+  }
+
+  if (message.content === '!lasttransactions') {
+    try {
+      const discordUserId = message.author.id;
+      console.log(`!lasttransactions from discord id ${discordUserId}`);
+      const user = await getDiscordUserPortfolios(discordUserId);
       if (!user) {
         await message.reply('You are not authorized to use this command.');
         return;
       }
 
-      // Get Portfolios
+      const portfolios = user.portfolio || user.Portfolios || [];
       let countPortfolio = 0;
-      let statusResponse = "";
-      for (const portfolio of user.portfolio) {
-        if (countPortfolio > 0)
-          statusResponse += "\n";
+      let statusResponse = '';
+
+      for (const portfolio of portfolios) {
+        if (countPortfolio > 0) statusResponse += '\n';
         statusResponse += `${portfolio.Keyword}\n`;
         countPortfolio += 1;
 
-        // Get Last Transactions (24h)
         const transactions = await getLastTransactions(user.UserUID, portfolio.Keyword, 24);
         for (const transaction of transactions) {
           statusResponse += `${transaction.DealUID}: ${transaction.Type}, ${transaction.Volume}, ${parseFloat(parseFloat(transaction.Price).toFixed(0))}, ${transaction.Amount}\n`;
         }
-        if (transactions.length === 0)
-          statusResponse += "None\n";
-      }
-      if (user.portfolio.length === 0)
-          statusResponse += "No Portfolio\n";
-      console.log(statusResponse);
 
-      // Discord messages have a 2000 character limit
+        if (transactions.length === 0) {
+          statusResponse += 'None\n';
+        }
+      }
+
+      if (portfolios.length === 0) {
+        statusResponse += 'No Portfolio\n';
+      }
+
       if (statusResponse.length > 1900) {
         await message.reply('Too many transactions to display. Please refine your request.');
       } else {
@@ -114,8 +160,6 @@ client.on('messageCreate', async message => {
       console.error('Error fetching status:', error);
       await message.reply('Internal Error');
     }
-    return;
-  }
   }
 });
 

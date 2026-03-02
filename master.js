@@ -1,8 +1,33 @@
 const axios = require("axios");
 
+const API_BASE_URL = process.env.API_BASE_URL || 'http://127.0.0.1:5001';
+
+const api = axios.create({
+    baseURL: API_BASE_URL,
+    timeout: 10000
+});
+
+const checkBackendAvailability = async () => {
+    try {
+        const response = await api.post('/get_discord_users_portfolios');
+        if (response.status !== 200) {
+            return {
+                ok: false,
+                message: `Unexpected status code ${response.status}`
+            };
+        }
+        return { ok: true, message: 'Backend reachable' };
+    } catch (error) {
+        return {
+            ok: false,
+            message: error.message
+        };
+    }
+};
+
 const getDiscordUserPortfolios = async (discordUID) => {
     try {
-        const response = await axios.post('http://127.0.0.1:5001/get_discord_user_portfolios', { discord_id: discordUID });
+        const response = await api.post('/get_discord_user_portfolios', { discord_id: String(discordUID) });
         let userPortfolios = [];
         if (response.status === 200) {
             userPortfolios = response.data;
@@ -16,7 +41,7 @@ const getDiscordUserPortfolios = async (discordUID) => {
 
 const getDiscordUsersPortfolios = async () => {
     try {
-        const response = await axios.post('http://127.0.0.1:5001/get_discord_users_portfolios');
+        const response = await api.post('/get_discord_users_portfolios');
         let users = [];
         if (response.status === 200) {
             users = response.data;
@@ -30,7 +55,7 @@ const getDiscordUsersPortfolios = async () => {
 
 const getDeals = async (userUID, keyword) => {
     try {
-        const response = await axios.post('http://127.0.0.1:5001/get_deals', {
+        const response = await api.post('/get_deals', {
             UserUID: userUID,
             Keyword: keyword
         });
@@ -47,7 +72,7 @@ const getDeals = async (userUID, keyword) => {
 
 const getDealsValuation = async (userUID, keyword) => {
     try {
-        const response = await axios.post('http://127.0.0.1:5001/get_deals_valuation', {
+        const response = await api.post('/get_deals_valuation', {
             UserUID: userUID,
             Keyword: keyword
         });
@@ -64,7 +89,7 @@ const getDealsValuation = async (userUID, keyword) => {
 
 const getLastTransactions = async (userUID, keyword, hours) => {
     try {
-        const response = await axios.post('http://127.0.0.1:5001/get_last_transactions', {
+        const response = await api.post('/get_last_transactions', {
             UserUID: userUID,
             Keyword: keyword,
             Hours: hours
@@ -82,7 +107,7 @@ const getLastTransactions = async (userUID, keyword, hours) => {
 
 const getDealsTotalVolume = async (userUID, keyword) => {
     try {
-        const response = await axios.post('http://127.0.0.1:5001/get_deals_total_volume', {
+        const response = await api.post('/get_deals_total_volume', {
             UserUID: userUID,
             Keyword: keyword
         });
@@ -93,13 +118,13 @@ const getDealsTotalVolume = async (userUID, keyword) => {
         return record;
     } catch (error) {
         console.error('Error fetching last valuation:', error.message);
-        return [];
+        return {};
     }
 };
 
 const getDealsTotalAmount = async (userUID, keyword) => {
     try {
-        const response = await axios.post('http://127.0.0.1:5001/get_deals_total_amount', {
+        const response = await api.post('/get_deals_total_amount', {
             UserUID: userUID,
             Keyword: keyword
         });
@@ -110,13 +135,13 @@ const getDealsTotalAmount = async (userUID, keyword) => {
         return record;
     } catch (error) {
         console.error('Error fetching last valuation:', error.message);
-        return [];
+        return {};
     }
 };
 
 const getDealsTotalSoldAmount = async (userUID) => {
     try {
-        const response = await axios.post('http://127.0.0.1:5001/get_deals_total_sold_amount', {
+        const response = await api.post('/get_deals_total_sold_amount', {
             UserUID: userUID
         });
         let record = {};
@@ -126,11 +151,12 @@ const getDealsTotalSoldAmount = async (userUID) => {
         return record;
     } catch (error) {
         console.error('Error fetching last valuation:', error.message);
-        return [];
+        return {};
     }
 };
 
 module.exports = {
+    checkBackendAvailability,
     getDiscordUserPortfolios,
     getDiscordUsersPortfolios,
     getDeals,

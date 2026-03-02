@@ -1,4 +1,3 @@
-const axios = require("axios");
 const { 
     getDiscordUsersPortfolios,
     getLastTransactions
@@ -11,15 +10,17 @@ const {
 module.exports = async function checkTransactions(client, usersToNotify) {
     console.log("Checking for new transactions created...");
     try {
+        const allowedDiscordIds = new Set((usersToNotify || []).map(String));
+
         // Get Users
         const users = await getDiscordUsersPortfolios();
         for (const user of users) {
             let countTransaction = 0;
-            let environment = user.BinanceTest ? "testnet" : "live";
             let statusResponse = "Last Transactions created in 1 hour:\n";
+            const portfolios = user.Portfolios || user.portfolio || [];
 
             // Get Portfolios
-            for (const portfolio of user.Portfolios) {
+            for (const portfolio of portfolios) {
                 let countTransactionTemp = 0;
                 let statusResponseTemp = `\n${portfolio.Keyword}\n`;
 
@@ -39,8 +40,8 @@ module.exports = async function checkTransactions(client, usersToNotify) {
             if (countTransaction > 0) {
                 // Map your user.TelegramUID to Discord user ID as needed
                 // Here, we assume user.DiscordUID exists and is in usersToNotify
-                const discordUserId = user.discord_id;
-                if (usersToNotify.includes(discordUserId)) {
+                const discordUserId = String(user.discord_id || user.DiscordUID || '');
+                if (allowedDiscordIds.has(discordUserId)) {
                     try {
                         const discordUser = await client.users.fetch(discordUserId);
                         await discordUser.send(statusResponse);
